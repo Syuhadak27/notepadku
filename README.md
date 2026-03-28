@@ -1,6 +1,6 @@
 # 📝 NotepadKu
 
-<div align="center">
+
 
 ![Version](https://img.shields.io/badge/version-1.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -8,9 +8,6 @@
 
 **Aplikasi Notepad Offline Modern dengan IndexedDB**
 
-[Fitur](#-fitur) • [Cara Penggunaan](#-cara-penggunaan) • [Demo](#-demo) • [Teknologi](#-teknologi)
-
-</div>
 
 ---
 
