@@ -11,8 +11,6 @@
 
 ---
 
-## 🌟 Fitur
-
 ### ✨ **Core Features**
 - ✅ **100% Offline** - Single HTML file, tidak perlu server atau internet
 - ✅ **IndexedDB** - Penyimpanan lokal yang powerful dan persisten
