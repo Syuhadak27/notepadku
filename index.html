@@ -1,0 +1,430 @@
+
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NotepadKu - Catatan Pribadi Anda</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          animation: {
+            'fade-in': 'fadeIn 0.2s ease-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'pulse-saved': 'pulseSaved 1.5s ease-in-out',
+            'modal-in': 'modalIn 0.2s ease-out'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' }
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            },
+            pulseSaved: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.6' }
+            },
+            modalIn: {
+              '0%': { opacity: '0', transform: 'scale(0.95)' },
+              '100%': { opacity: '1', transform: 'scale(1)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom styles untuk scrollbar & editor */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { 
+      background: #cbd5e1; 
+      border-radius: 4px; 
+    }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .note-card { 
+      transition: all 0.2s ease; 
+      cursor: pointer;
+    }
+    .note-card:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
+    .dark .note-card:hover {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    }
+    
+    .editor-modal, .confirm-modal {
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+    .editor-modal.hidden, .confirm-modal.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .editor-modal:not(.hidden), .confirm-modal:not(.hidden) {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    
+    .content-preview {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    /* Animasi untuk status saved */
+    .status-saved {
+      animation: pulse-saved 1.5s ease-in-out;
+    }
+    
+    /* Focus outline yang lebih halus */
+    input:focus, textarea:focus, button:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+    }
+    .dark input:focus, .dark textarea:focus, .dark button:focus {
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.4);
+    }
+    
+    /* View mode styles */
+    .view-mode .editor-actions-edit { display: none; }
+    .view-mode .editor-actions-view { display: flex; }
+    .view-mode #editorContent {
+      background: transparent;
+      cursor: default;
+    }
+    
+    .edit-mode .editor-actions-edit { display: flex; }
+    .edit-mode .editor-actions-view { display: none; }
+    .edit-mode #editorContent {
+      background: transparent;
+    }
+    
+    /* Modal overlay blur */
+    .modal-overlay {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    }
+    .dark .modal-overlay {
+      background: rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors duration-200 min-h-screen flex flex-col">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-3">
+      <!-- Logo & Title -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+        </div>
+        <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">NotepadKu</h1>
+      </div>
+      
+      <!-- Search Bar -->
+      <div class="flex-1 w-full sm:max-w-md">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Cari catatan..." 
+            class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-800 focus:ring-2 focus:ring-blue-500 transition-all"
+          />
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <!-- Sort Dropdown -->
+        <select id="sortSelect" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-sm focus:ring-2 focus:ring-blue-500">
+          <option value="newest">Terbaru</option>
+          <option value="oldest">Terlama</option>
+          <option value="az">A-Z</option>
+        </select>
+        
+        <!-- New Note Button -->
+        <button id="newNoteBtn" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="hidden sm:inline">New Note</span>
+        </button>
+        
+        <!-- Settings Button -->
+        <button id="settingsBtn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Settings">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT - Notes Grid -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden flex flex-col items-center justify-center py-16 text-center">
+      <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold mb-2">Belum ada catatan</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-4 max-w-sm">Klik tombol "New Note" untuk membuat catatan pertama Anda.</p>
+      <button id="emptyNewNoteBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
+        + Buat Catatan
+      </button>
+    </div>
+    
+    <!-- Notes Grid -->
+    <div id="notesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+      <!-- Cards will be injected here by JavaScript -->
+    </div>
+    
+    <!-- Stats Bar -->
+    <div id="statsBar" class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400 flex flex-wrap gap-4 justify-center">
+      <span id="totalNotes">0 catatan</span>
+      <span id="totalWords">0 kata</span>
+      <span id="lastBackup">Backup: -</span>
+    </div>
+  </main>
+
+  <!-- EDITOR MODAL (Fullscreen) - View/Edit Mode -->
+  <div id="editorModal" class="editor-modal hidden fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col">
+    <!-- Editor Header -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      <div class="flex items-center gap-3">
+        <button id="editorBackBtn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Kembali">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <input 
+          type="text" 
+          id="editorTitle" 
+          placeholder="Judul catatan..." 
+          class="text-lg font-semibold bg-transparent border-none focus:ring-0 p-0 w-48 sm:w-64 placeholder-gray-400"
+          readonly
+        />
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <!-- Status Saved Indicator -->
+        <span id="saveStatus" class="text-xs text-green-600 dark:text-green-400 opacity-0 transition-opacity font-medium">✓ Disimpan</span>
+        
+        <!-- Editor Actions - VIEW MODE (default) -->
+        <div class="editor-actions-view flex items-center gap-1.5 flex-wrap justify-end">
+          <button id="editorEditBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Edit
+          </button>
+          <button id="exportTxtBtn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Export sebagai .txt">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+          </button>
+          <button id="editorDeleteBtn" class="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors" title="Hapus catatan">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+          
+        </div>
+        
+        <!-- Editor Actions - EDIT MODE (hidden by default) -->
+        <div class="editor-actions-edit hidden items-center gap-1">
+          <button id="editorCancelBtn" class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Batal</button>
+          <button id="editorSaveBtn" class="px-4 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors shadow-sm">Simpan</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Editor Content -->
+    <div class="flex-1 overflow-hidden flex flex-col">
+      <textarea 
+        id="editorContent" 
+        placeholder="Tulis catatan Anda di sini..." 
+        class="flex-1 w-full p-4 sm:p-6 resize-none bg-transparent border-none focus:ring-0 text-base leading-relaxed placeholder-gray-400 readonly:bg-gray-50 dark:readonly:bg-gray-800/50"
+        style="font-family: system-ui, -apple-system, sans-serif;"
+        readonly
+      ></textarea>
+      
+      <!-- Editor Status Bar -->
+      <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-4">
+          <span id="wordCount">0 kata</span>
+          <span id="charCount">0 karakter</span>
+          <span id="modeIndicator" class="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">Mode: Lihat</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="lastSavedTime">Belum disimpan</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse-saved hidden" id="savedIndicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRM DELETE MODAL -->
+  <div id="deleteModal" class="confirm-modal hidden fixed inset-0 z-[60] flex items-center justify-center p-4 modal-overlay animate-fade-in">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md animate-modal-in">
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Hapus Catatan?</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Tindakan ini tidak dapat dibatalkan</p>
+        </div>
+      </div>
+      
+      <!-- Modal Content -->
+      <div class="px-6 py-4">
+        <p id="deleteModalTitle" class="text-gray-700 dark:text-gray-300 font-medium mb-1"></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Apakah Anda yakin ingin menghapus catatan ini secara permanen?</p>
+      </div>
+      
+      <!-- Modal Actions -->
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+        <button id="deleteCancelBtn" class="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium">
+          Batal
+        </button>
+        <button id="deleteConfirmBtn" class="px-4 py-2 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors font-medium shadow-sm">
+          Ya, Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay animate-fade-in">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold">Settings</h3>
+        <button id="closeSettingsBtn" class="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Modal Content -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <!-- Theme -->
+        <div>
+          <label class="block text-sm font-medium mb-2">Tema</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button data-theme="light" class="theme-btn px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 transition-colors text-sm">Light</button>
+            <button data-theme="dark" class="theme-btn px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 transition-colors text-sm">Dark</button>
+            <button data-theme="system" class="theme-btn px-3 py-2 rounded-lg border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors text-sm font-medium">System</button>
+          </div>
+        </div>
+        
+        <!-- Font Size -->
+        <div>
+          <label class="block text-sm font-medium mb-2">Ukuran Font Editor</label>
+          <select id="fontSizeSelect" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500">
+            <option value="12px">12px (Kecil)</option>
+            <option value="14px">14px (Normal)</option>
+            <option value="16px" selected>16px (Besar)</option>
+            <option value="18px">18px (Sangat Besar)</option>
+          </select>
+        </div>
+        
+        <!-- Font Family -->
+        <div>
+          <label class="block text-sm font-medium mb-2">Jenis Font</label>
+          <select id="fontFamilySelect" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500">
+            <option value="system-ui, -apple-system, sans-serif">System Default</option>
+            <option value="ui-monospace, SFMono-Regular, monospace">Monospace</option>
+            <option value="ui-sans-serif, system-ui, sans-serif">Sans-serif</option>
+          </select>
+        </div>
+        
+        <!-- Autosave Interval -->
+        <div>
+          <label class="block text-sm font-medium mb-2">Interval Autosave</label>
+          <select id="autosaveIntervalSelect" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500">
+            <option value="1000">1 detik</option>
+            <option value="2000" selected>2 detik</option>
+            <option value="5000">5 detik</option>
+            <option value="10000">10 detik</option>
+            <option value="0">Nonaktif</option>
+          </select>
+        </div>
+        
+        <!-- Backup & Restore -->
+        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <label class="block text-sm font-medium mb-3">Backup & Restore</label>
+          <div class="space-y-2">
+            <button id="backupBtn" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Download Semua Catatan (JSON)
+            </button>
+            <label class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm cursor-pointer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              Import Catatan (JSON)
+              <input type="file" id="importFile" accept=".json" class="hidden">
+            </label>
+          </div>
+        </div>
+        
+        <!-- Danger Zone -->
+        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <label class="block text-sm font-medium mb-2 text-red-600 dark:text-red-400">Danger Zone</label>
+          <button id="clearAllBtn" class="w-full px-4 py-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm font-medium">
+            Hapus Semua Catatan
+          </button>
+        </div>
+        
+        <!-- About -->
+        <div class="pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">NotepadKu v1.1</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500">Aplikasi notepad offline dengan IndexedDB</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Dibuat dengan ❤️ menggunakan Vanilla JS + Tailwind</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 transform translate-y-20 opacity-0 transition-all duration-300">
+    <div class="bg-gray-800 dark:bg-gray-700 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 max-w-sm">
+      <div id="toastIcon" class="w-5 h-5 flex-shrink-0"></div>
+      <span id="toastMessage" class="text-sm font-medium"></span>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT -->
+  <script src="script.js"></script>
+</body>
+</html>
