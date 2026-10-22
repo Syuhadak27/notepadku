@@ -1,0 +1,5 @@
+.nomedia
+-*.html
+-*.js
+*.zip
+.cc_backup/
