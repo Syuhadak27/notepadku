@@ -1,0 +1,59 @@
+{
+  "name": "Catatan — Notes offline",
+  "short_name": "Catatan",
+  "description": "Aplikasi menulis pribadi yang cepat, tenang, dan sepenuhnya offline. Catatan, checklist, gambar, rekaman, dan folder tersimpan di perangkatmu.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#f3f4f8",
+  "theme_color": "#f3f4f8",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Catatan baru",
+      "short_name": "Baru",
+      "description": "Buat catatan kosong baru",
+      "url": "./?action=new",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cari catatan",
+      "short_name": "Cari",
+      "description": "Buka pencarian catatan",
+      "url": "./?action=search",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
